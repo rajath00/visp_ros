@@ -1,0 +1,12 @@
+{
+    "python.autoComplete.extraPaths": [
+        "/home/ocrtoc/Rajath-master-thesis/VISP_WS/devel/lib/python3/dist-packages",
+        "/home/ocrtoc/Rajath-master-thesis/catkin_ws/devel/lib/python3/dist-packages",
+        "/opt/ros/noetic/lib/python3/dist-packages"
+    ],
+    "python.analysis.extraPaths": [
+        "/home/ocrtoc/Rajath-master-thesis/VISP_WS/devel/lib/python3/dist-packages",
+        "/home/ocrtoc/Rajath-master-thesis/catkin_ws/devel/lib/python3/dist-packages",
+        "/opt/ros/noetic/lib/python3/dist-packages"
+    ]
+}
