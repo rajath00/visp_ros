@@ -97,6 +97,7 @@ public:
 
     cv::Mat img3;
     depth = cv_ptr->image;
+    // std::cout<<depth<<std::endl;
     img3 = cv_ptr1->image;
     double max_val;
 
@@ -112,6 +113,7 @@ public:
   }
     cv::Mat get_current_depth()
   {
+    std::cout<<depth<<std::endl;
     return depth;
   }
     cv::Mat get_current_image()
@@ -176,13 +178,12 @@ try
     std::cout<<"created image subscriber"<<std::endl;
 //-------------------------------------------------------------------------------------------------------------------------------
 
-  vpDisplay::vpScaleType scale = vpDisplay::SCALE_DEFAULT;
+  // vpDisplay::vpScaleType scale = vpDisplay::SCALE_DEFAULT;
 	// define the Image grabber
 	vpImage< unsigned char> I;
   vpImage< unsigned char> J;
 	vpROSGrabber g;
-  cv::Mat im = ic.get_current_image();
-  cv::Mat depth = ic.get_current_depth();
+
   vpCameraParameters cam;
   try{
 	g.setImageTopic("/camera/image/");
@@ -190,12 +191,16 @@ try
 	g.open(argc,argv);
 	g.acquire(J);
   std::cout<<"g.open()"<<std::endl;
-  vpImageConvert::convert(im,I);
-  std::cout<<"vpConvert"<<std::endl;
+
   g.getCameraInfo( cam );
   std::cout<<"vpConvert"<<std::endl;
   std::cout << cam << std::endl;
-  vpDisplayOpenCV dc( J, I.getWidth(), I.getHeight(), "Current Depth image");
+  // vpDisplayOpenCV dc;
+  // dc.init(J);
+  // vpDisplay::setWindowPosition(J,400,100);
+  // vpDisplay::setTitle(J,"Current Depth image");
+  // vpDisplay::display(J);
+  // vpDisplayOpenCV dc( J, I.getWidth(), I.getHeight(), "Current Depth image");
 }
 catch( const vpException &e )
   {
@@ -204,8 +209,7 @@ catch( const vpException &e )
     return EXIT_FAILURE;
   }
 
-  cv::Mat desired_depth = ic.get_desired_depth();
-  cv::Mat desired_im = ic.get_desired_image();
+
 	// image grabber of the reference image
 	vpImage< unsigned char> Desired_I;
   vpImage< unsigned char> Desired_J;
@@ -214,17 +218,28 @@ catch( const vpException &e )
 	h.setCameraInfoTopic("/desired_camera/depth/camera_info");
 	h.open(argc,argv);
   h.acquire(Desired_J);
-  vpImageConvert::convert(desired_im,Desired_I);
   vpCameraParameters desired_cam;
   h.getCameraInfo( desired_cam );
 
     
-  vpDisplayOpenCV dd( Desired_J, Desired_I.getWidth(), Desired_I.getHeight(), "Desired Depth image",scale);
+  // vpDisplayOpenCV dd( Desired_J, Desired_I.getWidth(), Desired_I.getHeight(), "Desired Depth image");
 
 	// creating visual features
+  cv::Mat im = ic.get_current_image();
+  cv::Mat depth = ic.get_current_depth();
+
+  cv::Mat desired_depth = ic.get_desired_depth();
+  cv::Mat desired_im = ic.get_desired_image();
+
+  std::cout<<depth<<std::endl;
 	int feature_total = depth.total();
+  std::cout<<"feature_total "<<feature_total<<std::endl;
 	std::vector <vpFeaturePoint> p(feature_total), pd(feature_total);
 	
+    vpImageConvert::convert(im,I);
+  std::cout<<"vpConvert"<<std::endl;
+    vpImageConvert::convert(desired_im,Desired_I);
+
 	// setting up the control law properties
 	vpServo task;
 	
@@ -246,7 +261,6 @@ catch( const vpException &e )
     {
       task.setLambda( 1.2 );
     }
-
     // vpPlot *plotter = nullptr;
 
     // if ( opt_plot )
@@ -257,7 +271,7 @@ catch( const vpException &e )
     //   plotter->setTitle( 1, "Camera velocities" );
     //   plotter->initGraph( 0, 8 );
     //   plotter->initGraph( 1, 6 );
-    //   }
+    //   }Desired
 
 	bool final_quit = false;
 	bool has_converged = false;
@@ -275,8 +289,11 @@ catch( const vpException &e )
     int height = size.height;
     int width = size.width;
 
+    std::cout<<height<<" "<<width<<std::endl;
+
     try
     {
+    std::cout<<"pd assign---------------------"<<std::endl;
     for (unsigned int i=0;i<height;i++)
 	{
         for(unsigned int j=0;j<width;j++)
@@ -292,6 +309,7 @@ catch( const vpException &e )
             // std::vector<uint8_t> depth_pixel_vector (depth_pixel_array,depth_pixel_array+4);
             // std::cout<<depth_pixel_vector<<" ";
             check++;
+            std::cout<<pd[check].get_Z()<<std::endl;
             
         }
 		
@@ -307,18 +325,57 @@ catch( const vpException &e )
 
 	while( !final_quit)
 	{
-		sim_time = sim_time + wait_time;
-    im = ic.get_current_image();
-    depth = ic.get_current_depth();
-		vpImageConvert::convert(im,I);
-		vpDisplay::display(I);
+    std::cout<<"enterring while loop"<<std::endl;
+    try
+    {
+     sim_time = sim_time + wait_time;
+    }
+    catch(const std::exception& e)
+    {
+      std::cerr << e.what() << '\n';
+    }
+    
+		
+
+    try
+    {
+          im = ic.get_current_image();
+          depth = ic.get_current_depth();
+    }
+    catch(const std::exception& e)
+    {
+      std::cout << "error in im and depth" << std::endl;
+    }
+    
+    std::cout<<"read image"<<std::endl;
+
+
+    try
+    {
+      vpImageConvert::convert(im,I);
+      std::cout<<"converted image"<<std::endl;
+      g.acquire(J);
+      // cv::imshow("New Window",im);
+      std::cout<<g.getHeight()<<" "<<g.getWidth()<<std::endl;
+		  // vpDisplay::display(J);
+
+      std::cout<<"displayed image"<<std::endl;
+    }
+		catch(const vpException &e)
+    {
+      std::cout<<"image display error"<<std::endl;
+      return EXIT_FAILURE;
+    }
+    std::cout<<"image displayed"<<std::endl;
 
 
 
         // h.acquire(Desired,sim_time_img);
-        // vpDisplay::display(Desired);
+    // vpDisplay::display(Desired_J);
 
         int check = 0;
+        std::cout<<"p assign---------------------"<<std::endl;
+
         for (unsigned int i=0;i<height;i++)
 	    {
             for(unsigned int j=0;j<width;j++)
@@ -327,15 +384,23 @@ catch( const vpException &e )
             p[check].set_y(j);
             p[check].set_Z(depth.at<float>(i,j));
             check++;
+            std::cout<<p[check].get_Z()<<std::endl;
             }
 		
 	    }
+      std::cout<<"updated feature list"<<std::endl;
+
         vpColVector v_c( 6 );
+        std::cout<<"created vector"<<std::endl;
+        std::cout<<"task dimension "<< task.getDimension()<<std::endl;
         v_c = task.computeControlLaw();
+        std::cout<<"computed Control Law"<<std::endl;
         std::cout<< "task dimension : "<<task.getDimension()<<std::endl;
         vpServo::vpServoPrintType disp = vpServo::INTERACTION_MATRIX;
         // std::cout<< "interaction matrix : "<<interac.getRow(0)<<std::endl;
-        vpServoDisplay::display( task, cam, I );
+        std::cout<<"computed Control Law"<<std::endl;
+        
+        // vpServoDisplay::display( task, cam, J );
 
         // vpServoDisplay::display( task, desired_cam, Desired );
 
@@ -353,7 +418,7 @@ catch( const vpException &e )
         double error = task.getError().sumSquare();
         std::stringstream ss;
         ss << "||error||: " << error;
-        vpDisplay::displayText( I, 20, static_cast< int >( I.getWidth() ) - 150, ss.str(), vpColor::red );
+        // vpDisplay::displayText( J, 20, static_cast< int >( I.getWidth() ) - 150, ss.str(), vpColor::red );
 
 
 
@@ -371,7 +436,7 @@ catch( const vpException &e )
           has_converged = true;
           std::cout << "Servo task has converged"
                     << "\n";
-          vpDisplay::displayText( I, 100, 20, "Servo task has converged", vpColor::red );
+          // vpDisplay::displayText( J, 100, 20, "Servo task has converged", vpColor::red );
         //   final_quit = true;
         }
 
@@ -388,7 +453,7 @@ catch( const vpException &e )
 
         }
         vpMouseButton::vpMouseButtonType button;
-        if ( vpDisplay::getClick( I, button, false ) )
+        if ( vpDisplay::getClick( J, button, false ) )
         {
             switch ( button )
             {
@@ -406,7 +471,8 @@ catch( const vpException &e )
             }
         }
 
-        vpDisplay::flush( I );
+        vpDisplay::flush( J );
+        // vpDisplay::flush( Desired_J );
         // vpDisplay::flush(Desired);
         // Slow down the loop to simulate a camera at 50 Hz
     } // end while                        
@@ -416,18 +482,19 @@ catch( const vpException &e )
         {
             im = ic.get_current_image();
 		        vpImageConvert::convert(im,I);
-            vpDisplay::display( I );
+            g.acquire(J);
+            // vpDisplay::display( J);
 
-            vpDisplay::displayText( I, 20, 20, "Click to quit the program.", vpColor::red );
-            vpDisplay::displayText( I, 40, 20, "Visual servo converged.", vpColor::red );
+            // vpDisplay::displayText( J, 20, 20, "Click to quit the program.", vpColor::red );
+            // vpDisplay::displayText( J, 40, 20, "Visual servo converged.", vpColor::red );
 
-            if ( vpDisplay::getClick( I, false ) )
+            if ( vpDisplay::getClick( J, false ) )
             {
             final_quit = true;
             }
 
-            vpDisplay::flush( I );
-            // vpDisplay::flush( Desired );
+            // vpDisplay::flush(J );
+            // vpDisplay::flush( Desired_J);
         }
         }
 
