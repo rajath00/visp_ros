@@ -28,15 +28,24 @@ static const std::string OPENCV_WINDOW = "Image window";
 class ImageConverter
 {
 
+  int height;
+  int width;
   cv::Mat depth;
   cv::Mat desired_depth;
   cv::Mat image;
   cv::Mat desired_image;
+  cv::Mat A,B;
+  vpMatrix Lz;
+
   
 public:
-  ImageConverter()
+  ImageConverter(const int h, const int w)
     // : it_(nh_)
   {
+
+    height = h;
+    width = w;
+    Lz.resize(h*w,6);
     // // Subscrive to input video feed and publish output video feed
     // depth_sub_ = it_.subscribe("/camera/depth", 1,
     //   &ImageConverter::imageCb, this);
@@ -73,7 +82,7 @@ public:
     double max_val;
 
     cv::minMaxIdx(img3,NULL,&max_val);
-    std::cout<<max_val<<std::endl;
+    std::cout<<desired_depth<<std::endl;
     img3.convertTo(desired_image,-1,255.0/max_val,0);
 
   }
@@ -93,27 +102,63 @@ public:
       return;
     }
 
-    // std::cout<<cv_ptr->encoding<<std::endl;
+
 
     cv::Mat img3;
     depth = cv_ptr->image;
-    // std::cout<<depth<<std::endl;
     img3 = cv_ptr1->image;
     double max_val;
 
     cv::minMaxIdx(img3,NULL,&max_val);
-    std::cout<<max_val<<std::endl;
     img3.convertTo(image,-1,255.0/max_val,0);
 
-    // std::cout << "I = " << std::endl << " " << image << std::endl << std::endl;
-    // Update GUI Window
-    // cv::imshow(OPENCV_WINDOW, img3);
-    // cv::waitKey(3);
+    int ksize = 1;
+    int scale = 1;
+    int delta = 0;
+    int ddepth = CV_16S;
+    cv::Sobel(depth,A,ddepth,1,0,ksize,scale,delta,cv::BORDER_DEFAULT);
+    cv::Sobel(depth,B,ddepth,0,1,ksize,scale,delta,cv::BORDER_DEFAULT);
+    
+    // cv::Size size = depth.size();
+    // int height = size.height;
+    // int width = size.width;
+    int total = height*width;
+    int count = 0;
+    cv::Mat L((height*width, 6, CV_32FC1, cv::Scalar::all(0)));
+    for(int i=0;i<height;i++)
+    {
+      float Z,a,b;
+      float ab;
+      float zx,zy,zz;
+      for(int j=0;j<width;j++)
+      {
+        
+        Z = depth.at<float>(i,j);
+        a = A.at<float>(i,j);
+        b = B.at<float>(i,j);
+        ab = -(Z+(i*a)+(j*b))/Z;
+
+        zx = (-j*Z) - (i*j*a)- ((1+(j*j))*b);
+        zy = (i*Z) + (i*j*b)+ ((1+(i*i))*a);
+        zz = (i*b) - (j*a);
+        cv::Mat temp = (cv::Mat_<float>(1,6)<<a/Z, b/Z, ab,zx , zy, zz);
+        temp.copyTo(L.row(count));
+        count++;
+      }
+    }
+    
+    for(int i = 0;i<total;i++)
+    {
+      for(int j=0;j<6;j++)
+      {
+        Lz[i][j] = L.at<float>(i,j);
+      }
+    }
 
   }
     cv::Mat get_current_depth()
   {
-    std::cout<<depth<<std::endl;
+    // std::cout<<depth<<std::endl;
     return depth;
   }
     cv::Mat get_current_image()
@@ -129,7 +174,14 @@ public:
   {
     return desired_image;
   }
+  vpMatrix get_Interaction_Matrix()
+  {
+
+    return Lz;
+
+  }
 };
+
 
 int
 main( int argc, char **argv )
@@ -169,7 +221,7 @@ try
     image_transport::ImageTransport it(nh);
     image_transport::Subscriber depth_sub_;
     image_transport::Subscriber desired_depth_sub_;
-    ImageConverter ic;
+    ImageConverter ic(10,10);
     depth_sub_ = it.subscribe("/camera/depth", 1,
     &ImageConverter::imageCb,&ic);
     desired_depth_sub_ = it.subscribe("/desired_camera/depth", 1,
@@ -193,13 +245,14 @@ try
   std::cout<<"g.open()"<<std::endl;
 
   g.getCameraInfo( cam );
+  
   std::cout<<"vpConvert"<<std::endl;
   std::cout << cam << std::endl;
-  // vpDisplayOpenCV dc;
-  // dc.init(J);
-  // vpDisplay::setWindowPosition(J,400,100);
-  // vpDisplay::setTitle(J,"Current Depth image");
-  // vpDisplay::display(J);
+  vpDisplayOpenCV dc;
+  dc.init(J);
+  vpDisplay::setWindowPosition(J,400,100);
+  vpDisplay::setTitle(J,"Current Depth image");
+  vpDisplay::display(J);
   // vpDisplayOpenCV dc( J, I.getWidth(), I.getHeight(), "Current Depth image");
 }
 catch( const vpException &e )
@@ -242,6 +295,7 @@ catch( const vpException &e )
 
 	// setting up the control law properties
 	vpServo task;
+  vpMatrix L = ic.get_Interaction_Matrix();
 	
 	for (unsigned int i=0;i<p.size();i++)
 	{
@@ -249,7 +303,10 @@ catch( const vpException &e )
 	}
 	
 	task.setServo( vpServo::EYEINHAND_CAMERA);
-	task.setInteractionMatrixType(vpServo::CURRENT);
+	task.setInteractionMatrixType(vpServo::USER_DEFINED);
+  
+
+
 
     if ( opt_adaptive_gain )
     {
@@ -290,7 +347,6 @@ catch( const vpException &e )
     int width = size.width;
 
     std::cout<<height<<" "<<width<<std::endl;
-
     try
     {
     std::cout<<"pd assign---------------------"<<std::endl;
@@ -301,6 +357,7 @@ catch( const vpException &e )
             pd[check].set_x(i);
             pd[check].set_y(j);
             pd[check].set_Z(desired_depth.at<float>(i,j));
+            std::cout<<desired_depth.at<float>(i,j)<<std::endl;
             // float depth_pixel = M.at<float>(i,j);
             // std::cout<<depth_pixel<<std::endl;
             // std::vector<float> *vf2 = new std::vector<float>;
@@ -309,7 +366,7 @@ catch( const vpException &e )
             // std::vector<uint8_t> depth_pixel_vector (depth_pixel_array,depth_pixel_array+4);
             // std::cout<<depth_pixel_vector<<" ";
             check++;
-            std::cout<<pd[check].get_Z()<<std::endl;
+            // std::cout<<pd[check].get_Z()<<std::endl;
             
         }
 		
@@ -335,21 +392,7 @@ catch( const vpException &e )
       std::cerr << e.what() << '\n';
     }
     
-		
-
-    try
-    {
-          im = ic.get_current_image();
-          depth = ic.get_current_depth();
-    }
-    catch(const std::exception& e)
-    {
-      std::cout << "error in im and depth" << std::endl;
-    }
-    
-    std::cout<<"read image"<<std::endl;
-
-
+	
     try
     {
       vpImageConvert::convert(im,I);
@@ -369,9 +412,20 @@ catch( const vpException &e )
     std::cout<<"image displayed"<<std::endl;
 
 
+    try
+    {
+          im = ic.get_current_image();
+          depth = ic.get_current_depth();
+          L = ic.get_Interaction_Matrix();
+          std::cout<<depth<<std::endl;
+    }
+    catch(const std::exception& e)
+    {
+      std::cout << "error in im and depth" << std::endl;
+    }
+    
+    std::cout<<"read image"<<std::endl;
 
-        // h.acquire(Desired,sim_time_img);
-    // vpDisplay::display(Desired_J);
 
         int check = 0;
         std::cout<<"p assign---------------------"<<std::endl;
@@ -383,21 +437,37 @@ catch( const vpException &e )
             p[check].set_x(i);
             p[check].set_y(j);
             p[check].set_Z(depth.at<float>(i,j));
-            check++;
             std::cout<<p[check].get_Z()<<std::endl;
+            check++;
+            
             }
 		
 	    }
       std::cout<<"updated feature list"<<std::endl;
 
         vpColVector v_c( 6 );
+        task.L = L;
         std::cout<<"created vector"<<std::endl;
         std::cout<<"task dimension "<< task.getDimension()<<std::endl;
         v_c = task.computeControlLaw();
         std::cout<<"computed Control Law"<<std::endl;
         std::cout<< "task dimension : "<<task.getDimension()<<std::endl;
-        vpServo::vpServoPrintType disp = vpServo::INTERACTION_MATRIX;
-        // std::cout<< "interaction matrix : "<<interac.getRow(0)<<std::endl;
+        std::cout<<"task error"<<task.computeError()<<std::endl;
+        std::cout<<task.computeInteractionMatrix()<<std::endl;
+        // for (int i=0;i<height;i++)
+        // {
+        //   std::cout<<&ptr<<std::endl;
+        // ;
+
+        // }
+      
+      std::cout<<"------------------------------------"<<std::endl;
+
+       vpMatrix interac=task.getInteractionMatrix();
+
+        vpServo::vpServoPrintType disp = vpServo::ALL;
+        task.print(disp);
+        std::cout<< "interaction matrix : "<<interac.getRow(0)<<std::endl;
         std::cout<<"computed Control Law"<<std::endl;
         
         // vpServoDisplay::display( task, cam, J );
