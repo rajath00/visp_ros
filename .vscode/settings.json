@@ -75,7 +75,9 @@
         "thread": "cpp",
         "variant": "cpp",
         "numeric": "cpp",
-        "cinttypes": "cpp"
+        "cinttypes": "cpp",
+        "*.ipp": "cpp",
+        "core": "cpp"
     },
     "ros.distro": "noetic"
 }

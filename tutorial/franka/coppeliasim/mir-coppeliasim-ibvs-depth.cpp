@@ -1,4 +1,5 @@
 
+#include <cassert>
 #include <visp3/robot/vpSimulatorCamera.h>
 #include <visp3/visual_features/vpFeatureBuilder.h>
 #include <visp3/vs/vpServo.h>
@@ -201,7 +202,7 @@ public:
     // {
     //   std::cout<<*it<<" ";
     // }
-
+    cv::Mat zero_vec = (cv::Mat_<float>(1,6)<<0,0,0,0,0,0);
     for(int i=0;i<height;i++)
     {
       float Z,a,b;
@@ -240,6 +241,14 @@ public:
         // std::cout<<"Problem here?"<<std::endl;
         // std::cout<<"after"<<std::endl;
         temp.copyTo(L.row(count)); // copy row to interaction matrix
+        count++;
+        zero_vec.copyTo(L.row(count));
+        count++;
+
+
+
+
+
         // std::cout<<L<<std::endl;
         // std::cout<<"-------------------------------------------"<<std::endl;
         
@@ -248,7 +257,7 @@ public:
         // std::cout<<"L"<<std::endl;
         // std::cout<<L<<std::endl;
         // std::cout<<"Problem in copy?"<<std::endl;
-        count++;
+        
       }
     }
     
@@ -265,7 +274,7 @@ public:
   // return current depth
     cv::Mat get_current_depth()
   {
-    // std::cout<<depth<<std::endl;
+    std::cout<<depth<<std::endl;
     return depth;
   }
 
@@ -284,7 +293,7 @@ public:
   // return desired image
   cv::Mat get_desired_image()
   {
-    std::cout<<desired_image.size()<<std::endl;
+    // std::cout<<desired_image.size()<<std::endl;
     return desired_image;
   }
   // return the interactpm matrix
@@ -387,7 +396,7 @@ try
   Display the rgb image
   */
 
-
+  const std::vector<int> &_sz{height,width};
 
   vpDisplayOpenCV dc; 
   try
@@ -440,7 +449,7 @@ try
 	}
 	
 	task.setServo( vpServo::EYEINHAND_CAMERA);
-	task.setInteractionMatrixType(vpServo::USER_DEFINED);
+	task.setInteractionMatrixType(vpServo::USER_DEFINED,vpServo::PSEUDO_INVERSE);
   
   if ( opt_adaptive_gain )
   {
@@ -461,39 +470,40 @@ try
 
 
   vpImage< unsigned char> Desired_I;
-  cv::Mat desired_depth;
-  cv::Mat desired_im;
-  // std::cout<<"1"<<std::endl;
-  // while(desired_depth.empty())
-  // {
-  //   desired_depth = ic.get_desired_depth();
-  //   desired_im = ic.get_desired_image();
-  // }
-  
-  // std::cout<<desired_depth<<std::endl;
-  // vpImageConvert::convert(desired_im,Desired_I);
+  cv::Mat desired_depth(_sz,CV_16F);
+  cv::Mat desired_im(_sz,CV_16F);
+  std::cout<<"1"<<std::endl;
+  while(desired_depth.empty())
+  {
+    desired_depth = ic.get_desired_depth();
+    desired_im = ic.get_desired_image();
 
-  // int check = 0;
-  // try
-  // {
-  //   std::cout<<"P desired assigning..........."<<std::endl;
-  //   for (unsigned int i=0;i<height;i++)
-  //   {
-  //     for(unsigned int j=0;j<width;j++)
-  //     {
-  //       pd[check].set_x(i);
-  //       pd[check].set_y(j);
-  //       pd[check].set_Z(desired_depth.at<float>(i,j));
-  //       check++;
-  //     }
-  //   } 
-  // }
-  // catch (const vpException &e)
-  // {
-  //   std::cout<< " pd initialize error";
-  //   return EXIT_FAILURE;
-  // }
-  // std::cout<< "pd initialize over ........"<<std::endl;
+  }
+  std::cout<<desired_depth<<std::endl;
+  vpImageConvert::convert(desired_im,Desired_I);
+
+  int check = 0;
+  try
+  {
+    std::cout<<"P desired assigning..........."<<std::endl;
+    for (unsigned int i=0;i<height;i++)
+    {
+      for(unsigned int j=0;j<width;j++)
+      {
+        pd[check].set_x(desired_depth.at<float>(i,j));
+        // pd[check].set_x(i);
+        // pd[check].set_y(j);
+        // pd[check].set_Z(desired_depth.at<float>(i,j));
+        check++;
+      }
+    } 
+  }
+  catch (const vpException &e)
+  {
+    std::cout<< " pd initialize error";
+    return EXIT_FAILURE;
+  }
+  std::cout<< "pd initialize over ........"<<std::endl;
     
 
   /*
@@ -518,14 +528,14 @@ try
   */
 
   vpImage< unsigned char> I;
-  cv::Mat im;
-  cv::Mat depth;
-  //  std::cout<<"2"<<std::endl;
-  // while(depth.empty())
-  // {
-  //   im = ic.get_current_image();
-  //   depth = ic.get_current_depth();
-  // }
+  cv::Mat im(_sz,CV_16F);
+  cv::Mat depth(_sz,CV_16F);
+   std::cout<<"2"<<std::endl;
+  while(depth.empty())
+  {
+    im = ic.get_current_image();
+    depth = ic.get_current_depth();
+  }
 
   bool final_quit = false;
   bool has_converged = false;
@@ -536,7 +546,7 @@ try
   double sim_time_img        = sim_time;
   double wait_time = 0.02;
 
-  //  std::cout<<"3"<<std::endl;
+   std::cout<<"3"<<std::endl;
 	while( !final_quit)
 	{
     std::cout<<"enterring while loop"<<std::endl;
@@ -567,8 +577,11 @@ try
 
     */
 
+    std::cout<<"this passed"<<std::endl;
+
     im = ic.get_current_image();
-    depth = ic.get_current_depth();
+    // depth = ic.get_current_depth();
+    std::cout<<"depth"<<depth<<std::endl;
     L = ic.get_Interaction_Matrix();
     int check = 0;
     std::cout<<"p assign---------------------"<<std::endl;
@@ -576,35 +589,61 @@ try
     for (unsigned int i=0;i<height;i++)
     {
       for(unsigned int j=0;j<width;j++)
-      {
-        p[check].set_x(i);
-        p[check].set_y(j);
-        p[check].set_Z(depth.at<float>(i,j));
+      { 
+        p[check].set_x(depth.at<float>(i,j));
+        // std::cout<<i<<","<<j<<std::endl;
+        // p[check].set_x(i);
+        // std::cout<<"set_x "<<p[check].get_x()<<std::endl;
+        // p[check].set_y(j);
+        // std::cout<<"set_y "<<p[check].get_y()<<std::endl;
+        // std::cout<<"set_Z "<<depth.at<float>(i,j)<<std::endl;
+        // p[check].set_Z(depth.at<float>(i,j));
         // std::cout<<p[check].get_Z()<<std::endl;
+        // std::cout<<"Failing here"<<std::endl;
         check++;
       }
     }
     std::cout<<"updated feature list"<<std::endl;
-
+    auto& fro = p.front();
+    // std::cout<<"size of 1 feature"<<fro.get_s()<<std::endl;
     /*
     Computing the control law
     */
     vpColVector v_c( 6 );
     task.L = L;
-    std::cout<<L<<std::endl;
+    L.printSize();
+    std::cout<<"Print Size"<<std::endl;
+    
     std::cout<<"created vector"<<std::endl;
-    std::cout<<"task dimension "<< task.getDimension()<<std::endl;
-    v_c = task.computeControlLaw();
-    std::cout<<"computed Control Law"<<std::endl;
-    std::cout<<"task error"<<task.computeError()<<std::endl;
-      
-    std::cout<<"------------------------------------"<<std::endl;
+    std::cout<<"task dimension "<< task.getDimension()<<std::endl;    
+    
+    
+    std::list<vpBasicFeature *> feature_list = task.featureList;
+    std::cout<<"feature size :"<<feature_list.size()<<std::endl;
 
-    vpMatrix interac=task.getInteractionMatrix();
+    std::list<vpBasicFeature *> desiredFeature_list = task.desiredFeatureList;
+    std::cout<<"desiredFeature size :"<<desiredFeature_list.size()<<std::endl;
+
     vpServo::vpServoPrintType disp = vpServo::ALL;
     task.print(disp);
-    std::cout<< "interaction matrix : "<<interac.getRow(0)<<std::endl;
-    std::cout<<"computed Control Law"<<std::endl;
+
+    std::cout<<"------------------------------------"<<std::endl;
+
+    std::cout<<"error"<<std::endl<<task.computeError()<<std::endl;
+    std::cout<<"Ls"<<L<<std::endl;
+    v_c = task.computeControlLaw();
+    // std::cout<<"computed Control Law"<<std::endl;
+
+
+    // std::cout<<"task error"<<task.computeError()<<std::endl;
+      
+
+
+    vpMatrix interac=task.getInteractionMatrix();
+    // vpServo::vpServoPrintType disp = vpServo::ALL;
+    // task.print(disp);
+    // std::cout<< "interaction matrix : "<<interac.getRow(0)<<std::endl;
+    // std::cout<<"computed Control Law"<<std::endl;
         
     // vpServoDisplay::display( task, cam, J );
 

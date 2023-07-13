@@ -106,7 +106,7 @@ main( int argc, char **argv )
 
     g.getCameraInfo( cam );
     std::cout << cam << std::endl;
-    vpDisplayOpenCV dc( I, 10, 10, "Depth image" );
+    vpDisplayOpenCV dc( I, 10, 10, "Color image" );
 
     vpDetectorAprilTag::vpAprilTagFamily tagFamily                  = vpDetectorAprilTag::TAG_36h11;
     vpDetectorAprilTag::vpPoseEstimationMethod poseEstimationMethod = vpDetectorAprilTag::HOMOGRAPHY_VIRTUAL_VS;
@@ -207,7 +207,7 @@ main( int argc, char **argv )
       std::vector< vpHomogeneousMatrix > cMo_vec;
       detector.detect( I, opt_tagSize, cam, cMo_vec );
 
-      std::cout<<"3D pose of the tag : "<<cMo_vec[0].size()<<std::endl;
+      // std::cout<<"3D pose of the tag : "<<cMo_vec[0].size()<<std::endl;
 
       vpColVector v_c( 6 );
 
@@ -249,8 +249,8 @@ main( int argc, char **argv )
             pd[i].set_y( p_[1] );
             pd[i].set_Z( cP[2] );
             
-            std::cout<<point[i].get_oX()<<","<<point[i].get_oY()<<","<<point[i].get_oZ()<<std::endl;
-            std::cout<<"x , y, Z"<<pd[i].get_x()<<","<<pd[i].get_y()<<","<<pd[i].get_Z()<<std::endl;
+            // std::cout<<point[i].get_oX()<<","<<point[i].get_oY()<<","<<point[i].get_oZ()<<std::endl;
+            // std::cout<<"x , y, Z"<<pd[i].get_x()<<","<<pd[i].get_y()<<","<<pd[i].get_Z()<<std::endl;
           }
           std::cout<<"end first time"<<std::endl;
         } // end first_time
@@ -277,49 +277,49 @@ main( int argc, char **argv )
         // std::cout<< "interaction matrix : "<<interac.getRow(0)<<std::endl;
 
 
-        //  vpServoDisplay::display( task, cam, I );
-        // for ( size_t i = 0; i < corners.size(); i++ )
-        // {
-        //   std::stringstream ss;
-        //   ss << i;
-        //   // Display current point indexes
-        //   vpDisplay::displayText( I, corners[i] + vpImagePoint( 15, 15 ), ss.str(), vpColor::red );
-        //   // Display desired point indexes
-        //   vpImagePoint ip;
-        //   vpMeterPixelConversion::convertPoint( cam, pd[i].get_x(), pd[i].get_y(), ip );
-        //   vpDisplay::displayText( I, ip + vpImagePoint( 15, 15 ), ss.str(), vpColor::red );
-        // }
+         vpServoDisplay::display( task, cam, I );
+        for ( size_t i = 0; i < corners.size(); i++ )
+        {
+          std::stringstream ss;
+          ss << i;
+          // Display current point indexes
+          vpDisplay::displayText( I, corners[i] + vpImagePoint( 15, 15 ), ss.str(), vpColor::red );
+          // Display desired point indexes
+          vpImagePoint ip;
+          vpMeterPixelConversion::convertPoint( cam, pd[i].get_x(), pd[i].get_y(), ip );
+          vpDisplay::displayText( I, ip + vpImagePoint( 15, 15 ), ss.str(), vpColor::red );
+        }
 
-        // if ( first_time )
-        // {
-        //   traj_corners = new std::vector< vpImagePoint >[corners.size()];
-        // }
+        if ( first_time )
+        {
+          traj_corners = new std::vector< vpImagePoint >[corners.size()];
+        }
 
-        // // Display the trajectory of the points used as features
-        // display_point_trajectory( I, corners, traj_corners );
+        // Display the trajectory of the points used as features
+        display_point_trajectory( I, corners, traj_corners );
 
-        // if ( opt_plot )
-        // {
-        //   plotter->plot( 0, static_cast< double >( sim_time ), task.getError() );
-        //   plotter->plot( 1, static_cast< double >( sim_time ), v_c );
-        // }
+        if ( opt_plot )
+        {
+          plotter->plot( 0, static_cast< double >( sim_time ), task.getError() );
+          plotter->plot( 1, static_cast< double >( sim_time ), v_c );
+        }
 
-        // if ( opt_verbose )
-        // {
-        //   std::cout << "v_c: " << v_c.t() << std::endl;
-        // }
+        if ( opt_verbose )
+        {
+          std::cout << "v_c: " << v_c.t() << std::endl;
+        }
 
                 double error = task.getError().sumSquare();
-        // std::stringstream ss;
-        // ss << "||error||: " << error;
-        // vpDisplay::displayText( I, 20, static_cast< int >( I.getWidth() ) - 150, ss.str(), vpColor::red );
+        std::stringstream ss;
+        ss << "||error||: " << error;
+        vpDisplay::displayText( I, 20, static_cast< int >( I.getWidth() ) - 150, ss.str(), vpColor::red );
 
-        // std_msgs::Float64 error_msg;
-        // error_msg.data = error;
-        // m_pub_feature_error.publish(error_msg);
-        // std::cout<<" error_published"<<std::endl;
-        // if ( opt_verbose )
-        //   std::cout << ss.str() << std::endl;
+        std_msgs::Float64 error_msg;
+        error_msg.data = error;
+        m_pub_feature_error.publish(error_msg);
+        std::cout<<" error_published"<<std::endl;
+        if ( opt_verbose )
+          std::cout << ss.str() << std::endl;
 
         if ( !has_converged && error < convergence_threshold )
         {
@@ -329,10 +329,10 @@ main( int argc, char **argv )
           vpDisplay::displayText( I, 100, 20, "Servo task has converged", vpColor::red );
         }
 
-        // if ( first_time )
-        // {
-        //   first_time = false;
-        // }
+        if ( first_time )
+        {
+          first_time = false;
+        }
       } // end if (cMo_vec.size() == 1)
       else
       {
