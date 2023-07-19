@@ -86,8 +86,8 @@ main( int argc, char **argv )
 
     vpImage< unsigned char > I;
     vpROSGrabber g;
-    g.setImageTopic( "/camera/color/image_raw" );
-    g.setCameraInfoTopic( "/camera/color/camera_info" );
+    g.setImageTopic( "/realsense/color/image_raw" );
+    g.setCameraInfoTopic( "/realsense/color/camera_info" );
     // g.setImageTopic( "/coppeliasim/franka/camera/image" );
     // g.setCameraInfoTopic( "/coppeliasim/franka/camera/camera_info" );
     

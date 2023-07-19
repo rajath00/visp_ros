@@ -83,8 +83,8 @@ main( int argc, char **argv )
     vpROSGrabber g;
     //g.setImageTopic( "/coppeliasim/camera/image" );
     //g.setCameraInfoTopic( "/coppeliasim/camera/camera_info" );
-    g.setImageTopic( "/camera/color/image_raw" );
-    g.setCameraInfoTopic( "/camera/color/camera_info" );
+    g.setImageTopic( "/realsense/color/image_raw" );
+    g.setCameraInfoTopic( "/realsense/color/camera_info" );
     g.open( argc, argv );
     ros::Publisher m_pub_robotStateCmd;
     g.acquire( I );
