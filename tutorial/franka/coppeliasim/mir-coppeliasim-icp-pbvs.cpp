@@ -205,22 +205,22 @@ try
 
   const std::vector<int> &_sz{height,width};
 
-  vpDisplayOpenCV dc; 
-  try
-  {
-    dc.init(J);
-    vpDisplay::setWindowPosition(J,400,100);
-    vpDisplay::setTitle(J,"Current Depth image");
-    vpDisplay::display(J);
-    // vpDisplayOpenCV dd( Desired_J, Desired_I.getWidth(), Desired_I.getHeight(), "Desired Depth image");
+  // vpDisplayOpenCV dc; 
+  // try
+  // {
+  //   dc.init(J);
+  //   vpDisplay::setWindowPosition(J,400,100);
+  //   vpDisplay::setTitle(J,"Current Depth image");
+  //   vpDisplay::display(J);
+  //   // vpDisplayOpenCV dd( Desired_J, Desired_I.getWidth(), Desired_I.getHeight(), "Desired Depth image");
 
-  }
-  catch( const vpException &e )
-  {
-    std::cout << "Error i opencv display " << e.what() << std::endl;
-    std::cout << "Stop the robot " << std::endl;
-    return EXIT_FAILURE;
-  }
+  // }
+  // catch( const vpException &e )
+  // {
+  //   std::cout << "Error i opencv display " << e.what() << std::endl;
+  //   std::cout << "Stop the robot " << std::endl;
+  //   return EXIT_FAILURE;
+  // }
 //!--******************************************************************************************************
 
   /*
@@ -313,28 +313,28 @@ try
   task.addFeature(s_tu, s_star_tu); 
 
 
-    vpPlot *plotter = nullptr;
-    if ( opt_plot )
-    {
-      plotter = new vpPlot( 2, static_cast< int >( 250 * 2 ), 500, static_cast< int >( J.getWidth() ) + 80, 10,
-                            "Real time curves plotter" );
-      plotter->setTitle( 0, "Visual features error" );
-      plotter->setTitle( 1, "Camera velocities" );
-      plotter->initGraph( 0, 6 );
-      plotter->initGraph( 1, 6 );
-      plotter->setLegend( 0, 0, "error_feat_tx" );
-      plotter->setLegend( 0, 1, "error_feat_ty" );
-      plotter->setLegend( 0, 2, "error_feat_tz" );
-      plotter->setLegend( 0, 3, "error_feat_theta_ux" );
-      plotter->setLegend( 0, 4, "error_feat_theta_uy" );
-      plotter->setLegend( 0, 5, "error_feat_theta_uz" );
-      plotter->setLegend( 1, 0, "vc_x" );
-      plotter->setLegend( 1, 1, "vc_y" );
-      plotter->setLegend( 1, 2, "vc_z" );
-      plotter->setLegend( 1, 3, "wc_x" );
-      plotter->setLegend( 1, 4, "wc_y" );
-      plotter->setLegend( 1, 5, "wc_z" );
-    }
+    // vpPlot *plotter = nullptr;
+    // if ( opt_plot )
+    // {
+    //   plotter = new vpPlot( 2, static_cast< int >( 250 * 2 ), 500, static_cast< int >( J.getWidth() ) + 80, 10,
+    //                         "Real time curves plotter" );
+    //   plotter->setTitle( 0, "Visual features error" );
+    //   plotter->setTitle( 1, "Camera velocities" );
+    //   plotter->initGraph( 0, 6 );
+    //   plotter->initGraph( 1, 6 );
+    //   plotter->setLegend( 0, 0, "error_feat_tx" );
+    //   plotter->setLegend( 0, 1, "error_feat_ty" );
+    //   plotter->setLegend( 0, 2, "error_feat_tz" );
+    //   plotter->setLegend( 0, 3, "error_feat_theta_ux" );
+    //   plotter->setLegend( 0, 4, "error_feat_theta_uy" );
+    //   plotter->setLegend( 0, 5, "error_feat_theta_uz" );
+    //   plotter->setLegend( 1, 0, "vc_x" );
+    //   plotter->setLegend( 1, 1, "vc_y" );
+    //   plotter->setLegend( 1, 2, "vc_z" );
+    //   plotter->setLegend( 1, 3, "wc_x" );
+    //   plotter->setLegend( 1, 4, "wc_y" );
+    //   plotter->setLegend( 1, 5, "wc_z" );
+    // }
 
 
     bool final_quit                           = false;
@@ -357,7 +357,7 @@ try
 
     
     g.acquire( J, sim_time_img );
-    vpDisplay::display( J );
+    // vpDisplay::display( J );
     
     cdMc = pcd.get_matrix();
     // Update the current visual feature s
@@ -381,9 +381,11 @@ try
     m_pub_feature_error.publish(error_msg);
     std::cout<<" error_published"<<std::endl;
 
-    std::stringstream ss;
-    ss << "error_t: " << error;
-    vpDisplay::displayText( J, 40, static_cast< int >(J.getWidth() ) - 150, ss.str(), vpColor::red );
+    // std::cout<<"s_t" <<s_t.get_s()<<std::endl;
+    // std::cout<<"s_star_t"<<s_star_t.get_s()<<std::endl;
+    // std::stringstream ss;
+    // ss << "error_t: " << error;
+    // vpDisplay::displayText( J, 40, static_cast< int >(J.getWidth() ) - 150, ss.str(), vpColor::red );
 
   
     {
@@ -399,25 +401,25 @@ try
 
       }
 
-      vpMouseButton::vpMouseButtonType button;
-      if ( vpDisplay::getClick( J, button, false ) )
-      {
-        switch ( button )
-        {
-        case vpMouseButton::button1:
-          // send_velocities = !send_velocities;
-          break;
+    //   vpMouseButton::vpMouseButtonType button;
+    //   if ( vpDisplay::getClick( J, button, false ) )
+    //   {
+    //     switch ( button )
+    //     {
+    //     case vpMouseButton::button1:
+    //       // send_velocities = !send_velocities;
+    //       break;
 
-        case vpMouseButton::button3:
-          final_quit = true;
-          v_c        = 0;
-          break;
+    //     case vpMouseButton::button3:
+    //       final_quit = true;
+    //       v_c        = 0;
+    //       break;
 
-        default:
-          break;
-        }
-      }
-    vpDisplay::flush( J );
+    //     default:
+    //       break;
+    //     }
+    //   }
+    // vpDisplay::flush( J );
 
 
   } while ( !final_quit ); // Stop the task when current and desired visual features are close
