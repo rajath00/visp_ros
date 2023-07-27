@@ -172,8 +172,8 @@ try
 
   try
   {
-    g.setImageTopic("/realsense/color/image_raw");
-    g.setCameraInfoTopic("/realsense/color/camera_info");
+    g.setImageTopic("/camera/color/image_raw");
+    g.setCameraInfoTopic("/camera/color/camera_info");
     g.open(argc,argv);
     g.acquire(J);
     g.getCameraInfo( cam );
