@@ -86,8 +86,8 @@ main( int argc, char **argv )
 
     vpImage< unsigned char > I;
     vpROSGrabber g;
-    g.setImageTopic( "/realsense/color/image_raw" );
-    g.setCameraInfoTopic( "/realsense/color/camera_info" );
+    g.setImageTopic( "/camera/color/image_raw" );
+    g.setCameraInfoTopic( "/camera/color/camera_info" );
     // g.setImageTopic( "/coppeliasim/franka/camera/image" );
     // g.setCameraInfoTopic( "/coppeliasim/franka/camera/camera_info" );
     
@@ -141,7 +141,7 @@ main( int argc, char **argv )
       task.addFeature( p[i], pd[i] );
     }
     task.setServo( vpServo::EYEINHAND_CAMERA );
-    task.setInteractionMatrixType( vpServo::CURRENT );
+    task.setInteractionMatrixType( vpServo::MEAN );
 
     if ( opt_adaptive_gain )
     {

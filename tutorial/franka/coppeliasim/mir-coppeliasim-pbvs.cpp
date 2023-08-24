@@ -62,7 +62,7 @@ main( int argc, char **argv )
   {
     ros::init( argc, argv, "visp_ros" );
     ros::NodeHandlePtr n = boost::make_shared< ros::NodeHandle >();
-    ros::Rate loop_rate( 1000 );
+    ros::Rate loop_rate( 20 );
     ros::spinOnce();
 
     std::string m_topic_end_effector_vel;
@@ -83,8 +83,8 @@ main( int argc, char **argv )
     vpROSGrabber g;
     //g.setImageTopic( "/coppeliasim/camera/image" );
     //g.setCameraInfoTopic( "/coppeliasim/camera/camera_info" );
-    g.setImageTopic( "/realsense/color/image_raw" );
-    g.setCameraInfoTopic( "/realsense/color/camera_info" );
+    g.setImageTopic( "/camera/color/image_raw" );
+    g.setCameraInfoTopic( "/camera/color/camera_info" );
     g.open( argc, argv );
     ros::Publisher m_pub_robotStateCmd;
     g.acquire( I );
@@ -125,7 +125,7 @@ main( int argc, char **argv )
     task.addFeature( tu, tud );
 
     task.setServo( vpServo::EYEINHAND_CAMERA );
-    task.setInteractionMatrixType( vpServo::CURRENT );
+    task.setInteractionMatrixType( vpServo::MEAN );
 
         if ( opt_adaptive_gain )
     {
@@ -257,6 +257,8 @@ main( int argc, char **argv )
 
         vpTranslationVector cd_t_c = cdMc.getTranslationVector();
         vpThetaUVector cd_tu_c     = cdMc.getThetaUVector();
+        std::cout<<" camera translation : "<<cd_t_c <<std::endl;
+        std::cout<<" camera rotation : "<<cd_tu_c << std::endl;
         double error_tr            = sqrt( cd_t_c.sumSquare() );
         double error_tu            = vpMath::deg( sqrt( cd_tu_c.sumSquare() ) );
 
@@ -267,14 +269,18 @@ main( int argc, char **argv )
         ss << "error_tu: " << error_tu;
         vpDisplay::displayText( I, 40, static_cast< int >( I.getWidth() ) - 150, ss.str(), vpColor::red );
 
+        double error = sqrt(cd_t_c.sumSquare() + cd_tu_c.sumSquare());
 
         std_msgs::Float64 error_msg;
-        error_msg.data = error_tr;
+        // error_msg.data = error_tr;
+        error_msg.data = error;
         m_pub_feature_error.publish(error_msg);
-        std::cout<<" error_published"<<std::endl;
+        
 
         if ( opt_verbose )
           std::cout << "error translation: " << error_tr << " ; error rotation: " << error_tu << std::endl;
+
+          std::cout<<" error_published : "<<error<<std::endl;
 
         if ( !has_converged && error_tr < convergence_threshold_t && error_tu < convergence_threshold_tu )
         {

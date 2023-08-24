@@ -369,7 +369,7 @@ try
     error =  ( task.getError() ).sumSquare(); // error = s^2 - s_star^2
 
     if ( opt_verbose )
-    {
+    {                                                                                                                                                                                                    
       std::cout<<" M current"<< cdMc <<std::endl;
       std::cout << "v_c: " << v_c.t() << std::endl;
       std::cout<< "error: " << error << std::endl;
