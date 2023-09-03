@@ -16,6 +16,7 @@
 #include <geometry_msgs/Twist.h>
 #include <visp_ros/vpROSGrabber.h>
 #include <std_msgs/Float64.h>
+#include <visp3/vision/vpPose.h>
 
 void
 display_point_trajectory( const vpImage< unsigned char > &I, const std::vector< vpImagePoint > &vip,
@@ -225,10 +226,203 @@ main( int argc, char **argv )
         t.buildFrom( cdMc );
         tu.buildFrom( cdMc );
 
-        v_c = task.computeControlLaw();
+        std::vector<int> tagsId = detector.getTagsId();
+        std::map<int, double> tagsSize;
+
+        for(auto id:tagsId)
+        {
+          tagsSize[id] = opt_tagSize;
+        }
+
+         // Default tag size in meter, used when detected tag id is not in this map
+        // std::vector< std::vector< vpPoint > > tagsPoints = detector.getTagsPoints3D(tagsId, tagsSize);
+
+        // vpColVector _cP(3);
+        
+        // std::cout<<" tag cornes: "<<std::endl;
+        // for (auto element: tagsPoints){
+          
+        //   for (auto i: element)
+        //   {
+        //     // vpColVector p = i.p;
+        //     if (i.cPAvailable)
+        //     {
+        //       std::cout<<"Cp available"<<std::endl;
+        //       std::cout<<i.cP.t()<<std::endl;
+        //     }
+        //     else 
+        //     {
+        //       i.changeFrame(cMo,_cP);
+        //       std::cout<<"changing frame"<<std::endl;
+        //       std::cout<<i.cP.t()<<std::endl;
+        //     }
+            
+        //     std::cout<<i.get_X()<<" "<< i.get_Y()<<" "<< i.get_Z()<<std::endl;
+        // }
+        // }
+
+        // std::cout<<"tag id:"<<std::endl;
+
+
+        std::cout<<"\n";
+
+        int x1=40;
+        int x2=80;
+
+        int y1=30;
+        int y2=60;
+
+        int x= I.getWidth();
+        int y = I.getHeight();
+
+
+        vpRect A0(	x2/2.0,
+        y2/2.0,
+        x-x2,
+        y-y2 
+        );
+
+        vpRect A1(	x1/2.0,
+        y1/2.0,
+        x-x1,
+        y-y1 
+        );
+
+        vpRect A2(	0,
+        0,
+        x,
+        y 
+        );
+        int state = 0;
+        // vpThetaUVector cd_tu_c     = cdMc.getThetaUVector();    
+        // vpTranslationVector cd_t_c = cdMc.getTranslationVector();    
+        // double r            = sqrt( cd_tu_c.sumSquare() );
+        double delta = 0.1;
+
+        // std::cout<<" A0 bottom right : "<<A0.getBottomRight()<<std::endl;
+        // std::cout<<" A1 bottom right : "<<A1.getBottomRight()<<std::endl;
+        // std::cout<<" A2 bottom right : "<<A2.getBottomRight()<<std::endl;
+
+        std::vector<float> rot_direction;
+        std::vector<float> trans_direction;
+
+         vpRotationMatrix e{ 1, 0, 0, 0, 1, 0, 0, 0, 1 };
+        std::vector<std::vector<vpImagePoint> > tagsCorners = detector.getTagsCorners();
+        
+        // std::cout<<" tag cornes(m): "<<std::endl;
+        // for (size_t i = 0; i < tagsPoints.size(); i++) {
+
+        //     std::cout<<i<<std::endl;
+        //     for (size_t j = 0; j < tagsPoints[i].size(); j++) {
+        //       vpPoint &pt = tagsPoints[i][j];
+        //       std::cout<<j<<std::endl;
+        //         // vpPose pose(tagsPoints[i]);
+        //       std::cout<<pt.p.t()<<std::endl;
+        //       // const vpImagePoint &imPt = tagsCorners[i][j];
+        //       // double x = 0, y = 0;
+        //       // vpPixelMeterConversion::convertPoint(cam, imPt, x, y);
+        //       // pt.set_x(x);
+        //       // pt.set_y(y);
+              
+        //     }
+
+        // }
+
+        // vpMatrix L_xyz = t.interaction( vpBasicFeature::FEATURE_ALL );
+        // vpMatrix L_xyz_theta = tu.interaction( vpBasicFeature::FEATURE_ALL );
+        // vpMatrix::stackMatrices(L_xyz,L_xyz_theta,LL);
+        // vpMatrix LL;
+        // task.L = LL;
+
+        
+        for (auto element: tagsCorners[0]){
+
+            
+            if (element.inRectangle(A2)==true && element.inRectangle(A0)==false)
+            {
+              state = 2;
+              std::cout<<element.get_u()<<","<<element.get_v()<<std::endl;
+              break;
+            }
+            else{
+              state = 1;
+            }
+        }
+
+
+        task.setInteractionMatrixType( vpServo::MEAN );
+        v_c = task.computeControlLaw(); 
+
+        if (state==2)
+        {
+        //   vpMatrix LL = task.L;
+        //   task.setInteractionMatrixType( vpServo::USER_DEFINED );
+        // for (unsigned int i = 3; i < 6; i++) {
+        //   for (unsigned int j = 0; j < 6; j++) {
+        //     task.L[i][j] = task.L[i][j];
+        //   }
+        // for (unsigned int i = 0; i < 3; i++) {
+        //   for (unsigned int j = 0; j < 3; j++) {
+        //     task.L[i][j] = 0;
+        //   }
+
+        // }
+        // }
+        for (unsigned int i = 0; i < 6; i++) {
+          if (i!=2)
+          {
+            v_c[i] = 0;
+          }
+          else
+          {
+            v_c[i] *= -2;
+          }
+        std::cout<<"state ==2"<<std::endl;
+        // v_c = task.computeControlLaw(); 
+
+        }
+        // else {
+        //   task.setInteractionMatrixType( vpServo::MEAN );
+        // }
+        }
+
+
+        // v_c = task.computeControlLaw(); 
+        std::cout<<"task: "<<task.L<<std::endl;
+
+
+
+
+
+        // std::cout<<L_xyz<<std::endl;
+        // std::cout<<L_xyz_theta<<std::endl;
+
+        
+
+        
+
+        // std::cout<<"td :"<< td.get_s()<<std::endl;
+        // std::cout<<"tud :"<< tud.get_s()<<std::endl;
+
+        // std::cout<<"t :"<< t.get_s()<<std::endl;
+        // std::cout<<"tu :"<< tu.get_s()<<std::endl;
+
+      
+
+        // std::cout<<"L : "<<LL<<std::endl;
+        // std::cout<<"----------------------------------------"<<std::endl;
+
+        // std::cout<<"task.L : "<<task.L<<std::endl;
+
+
+
+
+
+
 
         vpDisplay::displayFrame( I, cdMo * oMo, cam, opt_tagSize / 1.5, vpColor::yellow, 2 );
         vpDisplay::displayFrame( I, cMo, cam, opt_tagSize / 2, vpColor::none, 3 );
+        vpDisplay::displayRectangle(I,A0,vpColor::red,false,2);
 
         // Get tag corners
         std::vector< vpImagePoint > corners = detector.getPolygon( 0 );
@@ -264,10 +458,10 @@ main( int argc, char **argv )
 
         std::stringstream ss;
         ss << "error_t: " << error_tr;
-        vpDisplay::displayText( I, 20, static_cast< int >( I.getWidth() ) - 150, ss.str(), vpColor::red );
+        vpDisplay::displayText( I, 60, static_cast< int >( I.getWidth() ) - 150, ss.str(), vpColor::red );
         ss.str( "" );
         ss << "error_tu: " << error_tu;
-        vpDisplay::displayText( I, 40, static_cast< int >( I.getWidth() ) - 150, ss.str(), vpColor::red );
+        vpDisplay::displayText( I, 80, static_cast< int >( I.getWidth() ) - 150, ss.str(), vpColor::red );
 
         double error = sqrt(cd_t_c.sumSquare() + cd_tu_c.sumSquare());
 

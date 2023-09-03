@@ -275,7 +275,10 @@ main( int argc, char **argv )
         // std::cout<< "task dimension : "<<task.getDimension()<<std::endl;
         // vpMatrix interac=task.getInteractionMatrix();
         // std::cout<< "interaction matrix : "<<interac.getRow(0)<<std::endl;
+        // vpColVector v_c;
+        //  v_c << 0.7021748136,  0.4436613268,  2.682208044,  -0.1407209634,  0.04238031384,  -0.1721144291;
 
+         double error = task.getError().sumSquare();
 
          vpServoDisplay::display( task, cam, I );
         for ( size_t i = 0; i < corners.size(); i++ )
@@ -309,7 +312,9 @@ main( int argc, char **argv )
           std::cout << "v_c: " << v_c.t() << std::endl;
         }
 
-                double error = task.getError().sumSquare();
+      {
+        
+        // error = 0.1;
         std::stringstream ss;
         ss << "||error||: " << error;
         vpDisplay::displayText( I, 20, static_cast< int >( I.getWidth() ) - 150, ss.str(), vpColor::red );
@@ -318,8 +323,13 @@ main( int argc, char **argv )
         error_msg.data = error;
         m_pub_feature_error.publish(error_msg);
         std::cout<<" error_published"<<std::endl;
+
         if ( opt_verbose )
           std::cout << ss.str() << std::endl;
+      }
+
+        
+
 
         if ( !has_converged && error < convergence_threshold )
         {
@@ -336,7 +346,14 @@ main( int argc, char **argv )
       } // end if (cMo_vec.size() == 1)
       else
       {
+        // v_c << 0.7021748136,  0.4436613268,  2.682208044,  -0.1407209634,  0.04238031384,  -0.1721144291;
         v_c = 0; // Stop the robot
+
+        // if ( opt_verbose )
+        // {
+        //   std::cout << "v_c: " << v_c.t() << std::endl;
+        // }
+        // error = 0.1;
       }
 
       {
@@ -351,6 +368,7 @@ main( int argc, char **argv )
           m_pub_end_effector_vel.publish( vel_msg );
 
       }
+
       vpMouseButton::vpMouseButtonType button;
       if ( vpDisplay::getClick( I, button, false ) )
       {
