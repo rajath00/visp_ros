@@ -15,6 +15,7 @@
 #include <visp3/vs/vpServoDisplay.h>
 #include <geometry_msgs/Twist.h>
 #include <std_msgs/Float64.h>
+#include <std_msgs/Bool.h>
 #include <visp_ros/vpROSGrabber.h>
 #include <visp3/vision/vpKeyPoint.h>
 #include <visp3/visual_features/vpFeaturePoint.h>
@@ -41,6 +42,7 @@ class PointCloud
   // cv::Mat mat;
   
   vpHomogeneousMatrix mat;
+  bool edge_cond;
   
 
 public:
@@ -102,6 +104,17 @@ vpHomogeneousMatrix get_matrix()
 {
   // std::cout<<"from the return function : "<<mat<<std::endl;
   return mat;
+}
+
+void edge_callback(const std_msgs::Bool::ConstPtr& msg)
+{
+  edge_cond = msg->data;
+}
+
+bool check_edge()
+{
+  // std::cout<<"from the return function : "<<mat<<std::endl;
+  return edge_cond;
 }
 
 
@@ -179,6 +192,8 @@ try
     g.getCameraInfo( cam );
 
 
+
+
     // h.setImageTopic("/desired_camera/image/");
     // h.setCameraInfoTopic("/desired_camera/depth/camera_info");
     // h.open(argc,argv);
@@ -237,18 +252,9 @@ try
   icp_sub = nh.subscribe("/icp/transform",1000,&PointCloud::icp_callback,&pcd);
   std::cout<<"subscriber launched"<<std::endl;
 //!--******************************************************************************************************
-  // ImageConverter ic(width,height);
 
-  // depth_sub_ = it.subscribe("/camera/depth", 1,
-  // &ImageConverter::imageCb,&ic);
-  // desired_depth_sub_ = it.subscribe("/desired_camera/depth", 1,
-  // &ImageConverter::desired_imageCb,&ic);
-  // std::cout<<"created image subscriber"<<std::endl;
-
-  /*
-  1. creating Visual feature matrix
-  2. setting up the servo task with EYEINHAND_CAMERA and USER_DEFINED INTERACTION MATRIX
-  */
+  ros::Subscriber icp_edge_sub;
+  icp_sub = nh.subscribe("/icp/edge_condition",1000,&PointCloud::edge_callback,&pcd);
 //!--******************************************************************************************************
 
   // Creation of an homogeneous matrix that represent the displacement
@@ -293,7 +299,7 @@ try
   task.setServo(vpServo::EYEINHAND_CAMERA); 
 
   // - Interaction matrix is computed with the current visual features s
-  task.setInteractionMatrixType(vpServo::CURRENT); 
+  task.setInteractionMatrixType(vpServo::MEAN); 
 
   // - Set the contant gain
       if ( opt_adaptive_gain )
@@ -365,7 +371,30 @@ try
     s_tu.buildFrom(cdMc); // Update ThetaU visual feature
 
     vpColVector v_c( 6 );
-    v_c = task.computeControlLaw(); // Compute camera velocity skew
+    int state = 0;
+    if(pcd.check_edge())
+    {
+      state = 2;
+    }
+
+    task.setInteractionMatrixType( vpServo::MEAN );
+    v_c = task.computeControlLaw(); 
+
+    if (state==2)
+        {
+        for (unsigned int i = 0; i < 6; i++) {
+          if (i!=2)
+          {
+            v_c[i] = 0;
+          }
+          else
+          {
+            v_c[i] *= -2;
+          }
+        std::cout<<"state ==2"<<std::endl;
+        }
+        }
+        std::cout<<"task: "<<task.L<<std::endl;
     error =  ( task.getError() ).sumSquare(); // error = s^2 - s_star^2
 
     if ( opt_verbose )
