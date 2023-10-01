@@ -219,23 +219,23 @@ try
   */
 
   const std::vector<int> &_sz{height,width};
+  // vpDisplayOpenCV dc( J, 10, 10, "Color image" );
+  vpDisplayOpenCV dc; 
+  try
+  {
+    dc.init(J);
+    vpDisplay::setWindowPosition(J,400,100);
+    vpDisplay::setTitle(J,"Current Depth image");
+    // vpDisplay::display(J);
+    // vpDisplayOpenCV dd( Desired_J, Desired_I.getWidth(), Desired_I.getHeight(), "Desired Depth image");
 
-  // vpDisplayOpenCV dc; 
-  // try
-  // {
-  //   dc.init(J);
-  //   vpDisplay::setWindowPosition(J,400,100);
-  //   vpDisplay::setTitle(J,"Current Depth image");
-  //   vpDisplay::display(J);
-  //   // vpDisplayOpenCV dd( Desired_J, Desired_I.getWidth(), Desired_I.getHeight(), "Desired Depth image");
-
-  // }
-  // catch( const vpException &e )
-  // {
-  //   std::cout << "Error i opencv display " << e.what() << std::endl;
-  //   std::cout << "Stop the robot " << std::endl;
-  //   return EXIT_FAILURE;
-  // }
+  }
+  catch( const vpException &e )
+  {
+    std::cout << "Error iN opencv display " << e.what() << std::endl;
+    std::cout << "Stop the robot " << std::endl;
+    return EXIT_FAILURE;
+  }
 //!--******************************************************************************************************
 
   /*
@@ -254,7 +254,7 @@ try
 //!--******************************************************************************************************
 
   ros::Subscriber icp_edge_sub;
-  icp_sub = nh.subscribe("/icp/edge_condition",1000,&PointCloud::edge_callback,&pcd);
+  icp_edge_sub = nh.subscribe("/icp/edge_condition",1000,&PointCloud::edge_callback,&pcd);
 //!--******************************************************************************************************
 
   // Creation of an homogeneous matrix that represent the displacement
@@ -363,12 +363,30 @@ try
 
     
     g.acquire( J, sim_time_img );
-    // vpDisplay::display( J );
+    vpDisplay::display( J );
+    
     
     cdMc = pcd.get_matrix();
     // Update the current visual feature s
+
     s_t.buildFrom(cdMc);  // Update translation visual feature
     s_tu.buildFrom(cdMc); // Update ThetaU visual feature
+
+    int x1=40;
+    int x2=80;
+
+    int y1=30;
+    int y2=60;
+
+    int x= J.getWidth();
+    int y = J.getHeight();
+
+
+    vpRect A0(	x2/2.0,
+    y2/2.0,
+    x-x2,
+    y-y2 
+    );
 
     vpColVector v_c( 6 );
     int state = 0;
@@ -379,27 +397,48 @@ try
 
     task.setInteractionMatrixType( vpServo::MEAN );
     v_c = task.computeControlLaw(); 
-
-    if (state==2)
-        {
-        for (unsigned int i = 0; i < 6; i++) {
-          if (i!=2)
-          {
-            v_c[i] = 0;
-          }
-          else
-          {
-            v_c[i] *= -2;
-          }
-        std::cout<<"state ==2"<<std::endl;
-        }
-        }
-        std::cout<<"task: "<<task.L<<std::endl;
     error =  ( task.getError() ).sumSquare(); // error = s^2 - s_star^2
+
+    // if (error>2.0)
+    // {
+    //  for (unsigned int i = 3; i < 6; i++) {
+    //         v_c[i] =0;
+    //  }
+    //   std::cout << "v_c: " << v_c.t() << std::endl;
+    //   std::cout<<"-----------------------------------------------"<<std::endl;
+    // }
+
+    // std::cout << "v_c: " << v_c.t() << std::endl;
+    // if (state==2)
+    //     {
+    //     for (unsigned int i = 0; i < 6; i++) {
+    //       if (i!=2)
+    //       {
+    //         v_c[i] = 0;
+    //       }
+    //       else
+    //       {
+    //         v_c[i] *= -2;
+    //       }
+        
+    //     }
+    //     std::cout<<"state ==2"<<std::endl;
+        // std::cout << "v_c: " << v_c.t() << std::endl;
+        // std::cout<<"-----------------------------------------------"<<std::endl;
+
+        // }
+        // std::cout<<"task: "<<task.L<<std::endl;
+        double opt_tagSize             = 0.08;
+        // vpDisplay::displayFrame( J, cdMo * oMo, cam, opt_tagSize / 1.5, vpColor::yellow, 2 );
+        vpDisplay::displayFrame( J, cMo, cam, opt_tagSize / 2, vpColor::none, 3 );
+        vpDisplay::displayRectangle(J,A0,vpColor::red,false,2);
+
+
+    
 
     if ( opt_verbose )
     {                                                                                                                                                                                                    
-      std::cout<<" M current"<< cdMc <<std::endl;
+      // std::cout<<" M current"<< cdMc <<std::endl;
       std::cout << "v_c: " << v_c.t() << std::endl;
       std::cout<< "error: " << error << std::endl;
     }  
@@ -426,136 +465,55 @@ try
       vel_msg.angular.x = v_c[3];
       vel_msg.angular.y = v_c[4];
       vel_msg.angular.z = v_c[5];
+
       m_pub_end_effector_vel.publish( vel_msg );
 
       }
 
-    //   vpMouseButton::vpMouseButtonType button;
-    //   if ( vpDisplay::getClick( J, button, false ) )
-    //   {
-    //     switch ( button )
-    //     {
-    //     case vpMouseButton::button1:
-    //       // send_velocities = !send_velocities;
-    //       break;
+      vpMouseButton::vpMouseButtonType button;
+      if ( vpDisplay::getClick( J, button, false ) )
+      {
+        switch ( button )
+        {
+        case vpMouseButton::button1:
+          // send_velocities = !send_velocities;
+          break;
 
-    //     case vpMouseButton::button3:
-    //       final_quit = true;
-    //       v_c        = 0;
-    //       break;
+        case vpMouseButton::button3:
+          final_quit = true;
+          v_c        = 0;
+          break;
 
-    //     default:
-    //       break;
-    //     }
-    //   }
-    // vpDisplay::flush( J );
+        default:
+          break;
+        }
+      }
+    vpDisplay::flush( J );
 
 
   } while ( !final_quit ); // Stop the task when current and desired visual features are close
 
 
 
-    // while ( !final_quit )
-    // {
-    //   sim_time = sim_time + wait_time;
-      
-    //   vpHomogeneousMatrix cMo_vec;
+                    
+    if ( !final_quit )
+    {
+      while ( !final_quit )
+      {
+        g.acquire( J );
+        vpDisplay::display( J );
 
-    //   cMo_vec = pcd.get_matrix();
+        vpDisplay::displayText( J, 20, 20, "Click to quit the program.", vpColor::red );
+        vpDisplay::displayText( J, 40, 20, "Visual servo converged.", vpColor::red );
 
-    //   std::cout<<"M_ICP(P)"<<cMo_vec<<std::endl;
+        if ( vpDisplay::getClick( J, false ) )
+        {
+          final_quit = true;
+        }
 
-    //   std::cout<<"P_desired"<<cdMc<<std::endl;
-
-    //   vpColVector v_c( 6 );
-    //   v_c = task.computeControlLaw();
-
-    //   if ( opt_verbose )
-    //     {
-    //       std::cout << "v_c: " << v_c.t() << std::endl;
-    //     }      
-
-    //   vpTranslationVector cd_t_c = cdMc.getTranslationVector();
-    //   vpThetaUVector cd_tu_c     = cdMc.getThetaUVector();
-    //   double error_tr            = sqrt( cd_t_c.sumSquare() );
-    //   double error_tu            = vpMath::deg( sqrt( cd_tu_c.sumSquare() ) );
-    
-    // std::stringstream ss;
-    // ss << "error_t: " << error_tr;
-    // vpDisplay::displayText( J, 20, static_cast< int >( J.getWidth() ) - 150, ss.str(), vpColor::red );
-    // ss.str( "" );
-    // ss << "error_tu: " << error_tu;
-    // vpDisplay::displayText( J, 40, static_cast< int >(J.getWidth() ) - 150, ss.str(), vpColor::red );
-
-    //     std_msgs::Float64 error_msg;
-    //     error_msg.data = error_tr;
-    //     m_pub_feature_error.publish(error_msg);
-    //     // std::cout<<" error_published"<<std::endl;
-
-    //     if ( opt_verbose )
-    //       std::cout << "ercror translation: " << error_tr << " ; error rotation: " << error_tu << std::endl;
-
-    //     if ( !has_converged && error_tr < convergence_threshold_t && error_tu < convergence_threshold_tu )
-    //     {
-    //       has_converged = true;
-    //       std::cout << "Servo task has converged"
-    //                 << "\n";
-    //       vpDisplay::displayText( J, 100, 20, "Servo task has converged", vpColor::red );
-    //     }
-
-    //     {
-    //       // std::cout << "v_c: " << v_c.t() << std::endl;
-    //       geometry_msgs::Twist vel_msg;
-    //       vel_msg.linear.x  = v_c[0];
-    //       vel_msg.linear.y  = v_c[1];
-    //       vel_msg.linear.z  = v_c[2];
-    //       vel_msg.angular.x = v_c[3];
-    //       vel_msg.angular.y = v_c[4];
-    //       vel_msg.angular.z = v_c[5];
-    //       m_pub_end_effector_vel.publish( vel_msg );
-
-    //   }
-
-    //   vpMouseButton::vpMouseButtonType button;
-    //   if ( vpDisplay::getClick( J, button, false ) )
-    //   {
-    //     switch ( button )
-    //     {
-    //     case vpMouseButton::button1:
-    //       // send_velocities = !send_velocities;
-    //       break;
-
-    //     case vpMouseButton::button3:
-    //       final_quit = true;
-    //       v_c        = 0;
-    //       break;
-
-    //     default:
-    //       break;
-    //     }
-    //   }
-
-    //   vpDisplay::flush( J );
-    //  //Slow down the loop to simulate a camera at 50 Hz
-    // } // end while                        
-    // if ( !final_quit )
-    // {
-    //   while ( !final_quit )
-    //   {
-    //     g.acquire( J );
-    //     vpDisplay::display( J );
-
-    //     vpDisplay::displayText( J, 20, 20, "Click to quit the program.", vpColor::red );
-    //     vpDisplay::displayText( J, 40, 20, "Visual servo converged.", vpColor::red );
-
-    //     if ( vpDisplay::getClick( J, false ) )
-    //     {
-    //       final_quit = true;
-    //     }
-
-    //     vpDisplay::flush( J );
-    //   }
-    // }
+        vpDisplay::flush( J );
+      }
+    }
     // // if ( traj_corners )
     // // {
     // //   delete[] traj_corners;

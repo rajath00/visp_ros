@@ -4,19 +4,21 @@
 
 #include <iostream>
 
+#include <chrono>
+#include <geometry_msgs/Twist.h>
+#include <std_msgs/Float64.h>
+#include <time.h>
 #include <visp3/core/vpCameraParameters.h>
 #include <visp3/detection/vpDetectorAprilTag.h>
 #include <visp3/gui/vpDisplayOpenCV.h>
 #include <visp3/gui/vpPlot.h>
 #include <visp3/io/vpImageIo.h>
+#include <visp3/vision/vpPose.h>
 #include <visp3/visual_features/vpFeatureThetaU.h>
 #include <visp3/visual_features/vpFeatureTranslation.h>
 #include <visp3/vs/vpServo.h>
 #include <visp3/vs/vpServoDisplay.h>
-#include <geometry_msgs/Twist.h>
 #include <visp_ros/vpROSGrabber.h>
-#include <std_msgs/Float64.h>
-#include <visp3/vision/vpPose.h>
 
 void
 display_point_trajectory( const vpImage< unsigned char > &I, const std::vector< vpImagePoint > &vip,
@@ -53,7 +55,7 @@ main( int argc, char **argv )
   double opt_tagSize             = 0.08;
   bool display_tag               = true;
   int opt_quad_decimate          = 2;
-  bool opt_verbose               = true;
+  bool opt_verbose               = false;
   bool opt_plot                  = true;
   bool opt_adaptive_gain         = true;
   bool opt_task_sequencing       = false;
@@ -71,19 +73,19 @@ main( int argc, char **argv )
 
     ros::NodeHandlePtr m = boost::make_shared< ros::NodeHandle >();
     ros::Publisher m_pub_end_effector_vel;
-    m_pub_end_effector_vel = m->advertise<geometry_msgs::Twist >(m_topic_end_effector_vel, 1);
+    m_pub_end_effector_vel = m->advertise< geometry_msgs::Twist >( m_topic_end_effector_vel, 1 );
 
     std::string m_topic_feature_error;
     m_topic_feature_error = "/feature_error";
 
     ros::NodeHandlePtr l = boost::make_shared< ros::NodeHandle >();
     ros::Publisher m_pub_feature_error;
-    m_pub_feature_error = l->advertise<std_msgs::Float64 >(m_topic_feature_error, 1);
+    m_pub_feature_error = l->advertise< std_msgs::Float64 >( m_topic_feature_error, 1 );
 
     vpImage< unsigned char > I;
     vpROSGrabber g;
-    //g.setImageTopic( "/coppeliasim/camera/image" );
-    //g.setCameraInfoTopic( "/coppeliasim/camera/camera_info" );
+    // g.setImageTopic( "/coppeliasim/camera/image" );
+    // g.setCameraInfoTopic( "/coppeliasim/camera/camera_info" );
     g.setImageTopic( "/camera/color/image_raw" );
     g.setCameraInfoTopic( "/camera/color/camera_info" );
     g.open( argc, argv );
@@ -128,22 +130,22 @@ main( int argc, char **argv )
     task.setServo( vpServo::EYEINHAND_CAMERA );
     task.setInteractionMatrixType( vpServo::MEAN );
 
-        if ( opt_adaptive_gain )
+    if ( opt_adaptive_gain )
     {
       std::cout << "Enable adaptive gain" << std::endl;
-      vpAdaptiveGain lambda( 4, 2, 25 ); // lambda(0)=4, lambda(oo)=1.2 and lambda'(0)=25
+      vpAdaptiveGain lambda( 1.25, 1, 30 ); // lambda(0)=4, lambda(oo)=1.2 and lambda'(0)=25
       task.setLambda( lambda );
     }
     else
     {
-      task.setLambda( 1.2 );
+      task.setLambda( 2 );
     }
 
     vpPlot *plotter = nullptr;
 
     if ( opt_plot )
     {
-      plotter = new vpPlot( 2, static_cast< int >( 250 * 2 ), 500, static_cast< int >( I.getWidth() ) + 80, 10,
+      plotter = new vpPlot( 2, static_cast< int >( 500 * 2 ), 1000, static_cast< int >( I.getWidth() ) + 80, 10,
                             "Real time curves plotter" );
       plotter->setTitle( 0, "Visual features error" );
       plotter->setTitle( 1, "Camera velocities" );
@@ -163,23 +165,24 @@ main( int argc, char **argv )
       plotter->setLegend( 1, 5, "wc_z" );
     }
 
-    bool final_quit                           = false;
-    bool has_converged                        = false;
+    bool final_quit    = false;
+    bool has_converged = false;
     // bool send_velocities                      = false;
     bool servo_started                        = false;
     std::vector< vpImagePoint > *traj_corners = nullptr; // To memorize point trajectory
 
-    double sim_time            = 0;
-    double sim_time_prev       = sim_time;
-    double sim_time_init_servo = sim_time;
-    double sim_time_img        = sim_time;
-    double wait_time = 0.02;
-
+    double sim_time = 0;
+    // double sim_time_prev       = sim_time;
+    // double sim_time_init_servo = sim_time;
+    // double sim_time_img        = sim_time;
+    // double wait_time = 0.02;
 
     while ( !final_quit )
     {
-      sim_time = sim_time + wait_time;
-      g.acquire( I, sim_time_img );
+      auto start = std::chrono::high_resolution_clock::now();
+      // sim_time = sim_time + wait_time;
+      // g.acquire( I, sim_time_img );
+      g.acquire( I );
       vpDisplay::display( I );
 
       std::vector< vpHomogeneousMatrix > cMo_vec;
@@ -226,22 +229,22 @@ main( int argc, char **argv )
         t.buildFrom( cdMc );
         tu.buildFrom( cdMc );
 
-        std::vector<int> tagsId = detector.getTagsId();
-        std::map<int, double> tagsSize;
+        std::vector< int > tagsId = detector.getTagsId();
+        std::map< int, double > tagsSize;
 
-        for(auto id:tagsId)
+        for ( auto id : tagsId )
         {
           tagsSize[id] = opt_tagSize;
         }
 
-         // Default tag size in meter, used when detected tag id is not in this map
+        // Default tag size in meter, used when detected tag id is not in this map
         // std::vector< std::vector< vpPoint > > tagsPoints = detector.getTagsPoints3D(tagsId, tagsSize);
 
         // vpColVector _cP(3);
-        
+
         // std::cout<<" tag cornes: "<<std::endl;
         // for (auto element: tagsPoints){
-          
+
         //   for (auto i: element)
         //   {
         //     // vpColVector p = i.p;
@@ -250,52 +253,38 @@ main( int argc, char **argv )
         //       std::cout<<"Cp available"<<std::endl;
         //       std::cout<<i.cP.t()<<std::endl;
         //     }
-        //     else 
+        //     else
         //     {
         //       i.changeFrame(cMo,_cP);
         //       std::cout<<"changing frame"<<std::endl;
         //       std::cout<<i.cP.t()<<std::endl;
         //     }
-            
+
         //     std::cout<<i.get_X()<<" "<< i.get_Y()<<" "<< i.get_Z()<<std::endl;
         // }
         // }
 
         // std::cout<<"tag id:"<<std::endl;
 
+        // std::cout << "\n";
 
-        std::cout<<"\n";
+        int x1 = 40;
+        int x2 = 80;
 
-        int x1=40;
-        int x2=80;
+        int y1 = 30;
+        int y2 = 60;
 
-        int y1=30;
-        int y2=60;
-
-        int x= I.getWidth();
+        int x = I.getWidth();
         int y = I.getHeight();
 
+        vpRect A0( x2 / 2.0, y2 / 2.0, x - x2, y - y2 );
 
-        vpRect A0(	x2/2.0,
-        y2/2.0,
-        x-x2,
-        y-y2 
-        );
+        vpRect A1( x1 / 2.0, y1 / 2.0, x - x1, y - y1 );
 
-        vpRect A1(	x1/2.0,
-        y1/2.0,
-        x-x1,
-        y-y1 
-        );
-
-        vpRect A2(	0,
-        0,
-        x,
-        y 
-        );
+        vpRect A2( 0, 0, x, y );
         int state = 0;
-        // vpThetaUVector cd_tu_c     = cdMc.getThetaUVector();    
-        // vpTranslationVector cd_t_c = cdMc.getTranslationVector();    
+        // vpThetaUVector cd_tu_c     = cdMc.getThetaUVector();
+        // vpTranslationVector cd_t_c = cdMc.getTranslationVector();
         // double r            = sqrt( cd_tu_c.sumSquare() );
         double delta = 0.1;
 
@@ -303,12 +292,12 @@ main( int argc, char **argv )
         // std::cout<<" A1 bottom right : "<<A1.getBottomRight()<<std::endl;
         // std::cout<<" A2 bottom right : "<<A2.getBottomRight()<<std::endl;
 
-        std::vector<float> rot_direction;
-        std::vector<float> trans_direction;
+        std::vector< float > rot_direction;
+        std::vector< float > trans_direction;
 
-         vpRotationMatrix e{ 1, 0, 0, 0, 1, 0, 0, 0, 1 };
-        std::vector<std::vector<vpImagePoint> > tagsCorners = detector.getTagsCorners();
-        
+        vpRotationMatrix e{ 1, 0, 0, 0, 1, 0, 0, 0, 1 };
+        std::vector< std::vector< vpImagePoint > > tagsCorners = detector.getTagsCorners();
+
         // std::cout<<" tag cornes(m): "<<std::endl;
         // for (size_t i = 0; i < tagsPoints.size(); i++) {
 
@@ -323,7 +312,7 @@ main( int argc, char **argv )
         //       // vpPixelMeterConversion::convertPoint(cam, imPt, x, y);
         //       // pt.set_x(x);
         //       // pt.set_y(y);
-              
+
         //     }
 
         // }
@@ -334,72 +323,62 @@ main( int argc, char **argv )
         // vpMatrix LL;
         // task.L = LL;
 
-        
-        for (auto element: tagsCorners[0]){
-
-            
-            if (element.inRectangle(A2)==true && element.inRectangle(A0)==false)
-            {
-              state = 2;
-              std::cout<<element.get_u()<<","<<element.get_v()<<std::endl;
-              break;
-            }
-            else{
-              state = 1;
-            }
-        }
-
-
-        task.setInteractionMatrixType( vpServo::MEAN );
-        v_c = task.computeControlLaw(); 
-
-        if (state==2)
+        for ( auto element : tagsCorners[0] )
         {
-        //   vpMatrix LL = task.L;
-        //   task.setInteractionMatrixType( vpServo::USER_DEFINED );
-        // for (unsigned int i = 3; i < 6; i++) {
-        //   for (unsigned int j = 0; j < 6; j++) {
-        //     task.L[i][j] = task.L[i][j];
-        //   }
-        // for (unsigned int i = 0; i < 3; i++) {
-        //   for (unsigned int j = 0; j < 3; j++) {
-        //     task.L[i][j] = 0;
-        //   }
 
-        // }
-        // }
-        for (unsigned int i = 0; i < 6; i++) {
-          if (i!=2)
+          if ( element.inRectangle( A2 ) == true && element.inRectangle( A0 ) == false )
           {
-            v_c[i] = 0;
+            state = 2;
+            // std::cout<<element.get_u()<<","<<element.get_v()<<std::endl;
+            break;
           }
           else
           {
-            v_c[i] *= -2;
+            state = 1;
           }
-        std::cout<<"state ==2"<<std::endl;
-        // v_c = task.computeControlLaw(); 
-
-        }
-        // else {
-        //   task.setInteractionMatrixType( vpServo::MEAN );
-        // }
         }
 
+        task.setInteractionMatrixType( vpServo::MEAN );
+        v_c = task.computeControlLaw();
 
-        // v_c = task.computeControlLaw(); 
-        std::cout<<"task: "<<task.L<<std::endl;
+        if ( state == 2 )
+        {
+          //   vpMatrix LL = task.L;
+          //   task.setInteractionMatrixType( vpServo::USER_DEFINED );
+          // for (unsigned int i = 3; i < 6; i++) {
+          //   for (unsigned int j = 0; j < 6; j++) {
+          //     task.L[i][j] = task.L[i][j];
+          //   }
+          // for (unsigned int i = 0; i < 3; i++) {
+          //   for (unsigned int j = 0; j < 3; j++) {
+          //     task.L[i][j] = 0;
+          //   }
 
+          // }
+          // }
+          for ( unsigned int i = 0; i < 6; i++ )
+          {
+            if ( i != 2 )
+            {
+              v_c[i] = 0;
+            }
+            else
+            {
+              v_c[i] *= -2;
+            }
+            // std::cout<<"state ==2"<<std::endl;
+            // v_c = task.computeControlLaw();
+          }
+          // else {
+          //   task.setInteractionMatrixType( vpServo::MEAN );
+          // }
+        }
 
-
-
+        // v_c = task.computeControlLaw();
+        // std::cout<<"task: "<<task.L<<std::endl;
 
         // std::cout<<L_xyz<<std::endl;
         // std::cout<<L_xyz_theta<<std::endl;
-
-        
-
-        
 
         // std::cout<<"td :"<< td.get_s()<<std::endl;
         // std::cout<<"tud :"<< tud.get_s()<<std::endl;
@@ -407,22 +386,14 @@ main( int argc, char **argv )
         // std::cout<<"t :"<< t.get_s()<<std::endl;
         // std::cout<<"tu :"<< tu.get_s()<<std::endl;
 
-      
-
         // std::cout<<"L : "<<LL<<std::endl;
         // std::cout<<"----------------------------------------"<<std::endl;
 
         // std::cout<<"task.L : "<<task.L<<std::endl;
 
-
-
-
-
-
-
         vpDisplay::displayFrame( I, cdMo * oMo, cam, opt_tagSize / 1.5, vpColor::yellow, 2 );
         vpDisplay::displayFrame( I, cMo, cam, opt_tagSize / 2, vpColor::none, 3 );
-        vpDisplay::displayRectangle(I,A0,vpColor::red,false,2);
+        vpDisplay::displayRectangle( I, A0, vpColor::red, false, 2 );
 
         // Get tag corners
         std::vector< vpImagePoint > corners = detector.getPolygon( 0 );
@@ -436,7 +407,7 @@ main( int argc, char **argv )
         }
 
         // Display the trajectory of the points used as features
-        display_point_trajectory( I, corners, traj_corners );
+        // display_point_trajectory( I, corners, traj_corners );
 
         if ( opt_plot )
         {
@@ -446,15 +417,15 @@ main( int argc, char **argv )
 
         if ( opt_verbose )
         {
-          std::cout << "v_c: " << v_c.t() << std::endl;
+          // std::cout << "v_c: " << v_c.t() << std::endl;
         }
 
         vpTranslationVector cd_t_c = cdMc.getTranslationVector();
         vpThetaUVector cd_tu_c     = cdMc.getThetaUVector();
-        std::cout<<" camera translation : "<<cd_t_c <<std::endl;
-        std::cout<<" camera rotation : "<<cd_tu_c << std::endl;
-        double error_tr            = sqrt( cd_t_c.sumSquare() );
-        double error_tu            = vpMath::deg( sqrt( cd_tu_c.sumSquare() ) );
+        // std::cout<<" camera translation : "<<cd_t_c <<std::endl;
+        // std::cout<<" camera rotation : "<<cd_tu_c << std::endl;
+        double error_tr = sqrt( cd_t_c.sumSquare() );
+        double error_tu = vpMath::deg( sqrt( cd_tu_c.sumSquare() ) );
 
         std::stringstream ss;
         ss << "error_t: " << error_tr;
@@ -463,26 +434,25 @@ main( int argc, char **argv )
         ss << "error_tu: " << error_tu;
         vpDisplay::displayText( I, 80, static_cast< int >( I.getWidth() ) - 150, ss.str(), vpColor::red );
 
-        double error = sqrt(cd_t_c.sumSquare() + cd_tu_c.sumSquare());
+        double error = sqrt( cd_t_c.sumSquare() + cd_tu_c.sumSquare() );
 
         std_msgs::Float64 error_msg;
         // error_msg.data = error_tr;
         error_msg.data = error;
-        m_pub_feature_error.publish(error_msg);
-        
+        m_pub_feature_error.publish( error_msg );
 
         if ( opt_verbose )
-          std::cout << "error translation: " << error_tr << " ; error rotation: " << error_tu << std::endl;
+          // std::cout << "error translation: " << error_tr << " ; error rotation: " << error_tu << std::endl;
 
-          std::cout<<" error_published : "<<error<<std::endl;
+          // std::cout<<" error_published : "<<error<<std::endl;
 
-        if ( !has_converged && error_tr < convergence_threshold_t && error_tu < convergence_threshold_tu )
-        {
-          has_converged = true;
-          std::cout << "Servo task has converged"
-                    << "\n";
-          vpDisplay::displayText( I, 100, 20, "Servo task has converged", vpColor::red );
-        }
+          if ( !has_converged && error_tr < convergence_threshold_t && error_tu < convergence_threshold_tu )
+          {
+            has_converged = true;
+            std::cout << "Servo task has converged"
+                      << "\n";
+            vpDisplay::displayText( I, 100, 20, "Servo task has converged", vpColor::red );
+          }
 
         if ( first_time )
         {
@@ -495,23 +465,21 @@ main( int argc, char **argv )
       }
 
       // if ( !send_velocities )
-      
 
       // {
       //   v_c = 0; // Stop the robot
       // }
 
       {
-          // std::cout << "v_c: " << v_c.t() << std::endl;
-          geometry_msgs::Twist vel_msg;
-          vel_msg.linear.x  = v_c[0];
-          vel_msg.linear.y  = v_c[1];
-          vel_msg.linear.z  = v_c[2];
-          vel_msg.angular.x = v_c[3];
-          vel_msg.angular.y = v_c[4];
-          vel_msg.angular.z = v_c[5];
-          m_pub_end_effector_vel.publish( vel_msg );
-
+        // std::cout << "v_c: " << v_c.t() << std::endl;
+        geometry_msgs::Twist vel_msg;
+        vel_msg.linear.x  = v_c[0];
+        vel_msg.linear.y  = v_c[1];
+        vel_msg.linear.z  = v_c[2];
+        vel_msg.angular.x = v_c[3];
+        vel_msg.angular.y = v_c[4];
+        vel_msg.angular.z = v_c[5];
+        m_pub_end_effector_vel.publish( vel_msg );
       }
       vpMouseButton::vpMouseButtonType button;
       if ( vpDisplay::getClick( I, button, false ) )
@@ -533,8 +501,12 @@ main( int argc, char **argv )
       }
 
       vpDisplay::flush( I );
-     // Slow down the loop to simulate a camera at 50 Hz
-    } // end while                        
+      auto stop     = std::chrono::high_resolution_clock::now();
+      auto duration = std::chrono::duration_cast< std::chrono::milliseconds >( stop - start );
+      // std::cout << "VISP PBVS time : " << duration.count() << "milliseconds" << std::endl;
+
+      // Slow down the loop to simulate a camera at 50 Hz
+    } // end while
     if ( !final_quit )
     {
       while ( !final_quit )
